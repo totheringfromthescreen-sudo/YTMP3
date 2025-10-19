@@ -20,8 +20,8 @@ app.get("/download", async (req, res) => {
       const audioBuffer = Buffer.concat(bufferChunks);
 
       res.json({
-        title = info.videoDetails.title,
-        audio = audioBuffer.toString("base64")
+        title: info.videoDetails.title,
+        audio: audioBuffer.toString("base64")
       });
     });
 
