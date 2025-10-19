@@ -1,5 +1,5 @@
 import express from "express";
-import ytdl from "ytdl-core";
+import play from "@iamtraction/play-dl";
 
 const app = express();
 
@@ -8,39 +8,32 @@ app.get("/download", async (req, res) => {
   if (!url) return res.status(400).json({ error: "Missing YouTube URL" });
 
   try {
-    const info = await ytdl.getInfo(url);
-    const title = info.videoDetails.title.replace(/[^\w\s]/gi, "");
+    // Get video info
+    const info = await play.video_info(url);
+    const title = info.video_details.title.replace(/[^\w\s]/gi, "");
 
-    const audioStream = ytdl(url, {
-      filter: "audioonly",
-      quality: "highestaudio",
-      requestOptions: {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-          "Accept-Language": "en-US,en;q=0.9"
-        }
-      }
-    });
+    // Get audio stream
+    const stream = await play.stream(url, { quality: 2 }); // 2 = high audio
 
     const chunks = [];
-    audioStream.on("data", (chunk) => chunks.push(chunk));
+    stream.stream.on("data", (chunk) => chunks.push(chunk));
 
-    audioStream.on("end", () => {
+    stream.stream.on("end", () => {
       const audioBuffer = Buffer.concat(chunks);
       res.json({
-        title: info.videoDetails.title,
-        lengthSeconds: info.videoDetails.lengthSeconds,
-        audio: audioBuffer.toString("base64") // field is now "audio"
+        title: info.video_details.title,
+        lengthSeconds: info.video_details.durationInSec,
+        audio: audioBuffer.toString("base64") // Lua-friendly
       });
     });
 
-    audioStream.on("error", (err) => {
+    stream.stream.on("error", (err) => {
       console.error("Stream error:", err);
       res.status(500).json({ error: "Error fetching audio stream" });
     });
 
   } catch (err) {
-    console.error("YTDL Error:", err);
+    console.error("Play-DL Error:", err);
     res.status(500).json({ error: "Error processing video" });
   }
 });
