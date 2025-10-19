@@ -12,21 +12,27 @@ app.get("/download", async (req, res) => {
     const info = await ytdl.getInfo(url);
     const title = info.videoDetails.title.replace(/[^\w\s]/gi, "");
 
-    const audioStream = ytdl(url, { filter: "audioonly", quality: "highestaudio" });
-    const bufferChunks = [];
+    const audioStream = ytdl(url, {
+      filter: "audioonly",
+      quality: "highestaudio",
+      requestOptions: {
+        headers: { "User-Agent": "Mozilla/5.0" }
+      }
+    });
 
-    audioStream.on("data", (chunk) => bufferChunks.push(chunk));
-    audioStream.on("end", () => {
-      const audioBuffer = Buffer.concat(bufferChunks);
+    res.setHeader("Content-Disposition", `attachment; filename="${title}.mp3"`);
+    res.setHeader("Content-Type", "audio/mpeg");
 
-      res.json({
-        title: info.videoDetails.title,
-        audio: audioBuffer.toString("base64")
-      });
+    const pass = new PassThrough();
+    audioStream.pipe(pass).pipe(res);
+
+    audioStream.on("error", (err) => {
+      console.error("Stream error:", err);
+      res.status(500).send("Error downloading audio");
     });
 
   } catch (err) {
-    console.error(err);
+    console.error("Error:", err);
     res.status(500).send("Error processing video");
   }
 });
